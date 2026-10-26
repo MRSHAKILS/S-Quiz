@@ -112,3 +112,25 @@ describe("rules", () => {
     expect((await game.join(s2.code, "X")).outcome).toBe("joined");
   });
 });
+
+describe("snapshot", () => {
+  it("hides the correct answer until reveal and exposes host data only to the host", async () => {
+    const s = await game.createSession("host1", "quiz1");
+    const { playerId } = await game.join(s.code, "Ann");
+    await game.hostAction(s.code, "host1", "start");
+
+    const during = await game.snapshot(s.code, { playerId });
+    expect(during.correctOptionId).toBeNull();
+    expect(JSON.stringify(during)).not.toContain("correctOptionId\":\"a");
+    expect(during.me).toMatchObject({ nickname: "Ann", choice: null });
+    expect(during.host).toBeUndefined();
+
+    await game.submitAnswer(s.code, playerId, "a");
+    const hostView = await game.snapshot(s.code, { hostId: "host1" });
+    expect(hostView.host).toMatchObject({ answeredCount: 1, players: [{ nickname: "Ann" }] });
+    expect((await game.snapshot(s.code, { hostId: "someone-else" })).host).toBeUndefined();
+
+    await game.hostAction(s.code, "host1", "reveal");
+    expect((await game.snapshot(s.code, { playerId })).correctOptionId).toBe("a");
+  });
+});

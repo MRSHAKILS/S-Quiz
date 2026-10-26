@@ -107,5 +107,22 @@ for (const [name, make, enabled] of impls) {
       expect(lb.map((e) => [e.nickname, e.score, e.rank])).toEqual([["Cy", 500, 1], ["Bob", 300, 2], ["Ann", 100, 3]]);
       expect(await s.leaderboard("HHHHHH", 1)).toHaveLength(1);
     });
+
+    it("reports player state, roster and answer counts", async () => {
+      const s = make();
+      const start = await s.now();
+      await s.createSession(base("JJJJJJ"));
+      await s.join("JJJJJJ", "a", "Ann", 10);
+      await s.join("JJJJJJ", "b", "Bob", 10);
+      await s.saveSession(base("JJJJJJ", { status: "question", currentIndex: 0, questionStartedAt: start }));
+      await s.recordAnswer({ code: "JJJJJJ", index: 0, playerId: "a", optionId: "opt1", correct: true, timeLimitMs: 10_000 });
+      await s.addScore("JJJJJJ", "a", 900);
+      await s.addScore("JJJJJJ", "b", 400);
+      expect(await s.answerCount("JJJJJJ", 0)).toBe(1);
+      expect(await s.playerState("JJJJJJ", "a", 0)).toEqual({ nickname: "Ann", score: 900, rank: 1, choice: "opt1" });
+      expect(await s.playerState("JJJJJJ", "b", 0)).toEqual({ nickname: "Bob", score: 400, rank: 2, choice: null });
+      expect(await s.playerState("JJJJJJ", "ghost", 0)).toBeNull();
+      expect((await s.players("JJJJJJ")).map((p) => p.nickname).sort()).toEqual(["Ann", "Bob"]);
+    });
   });
 }

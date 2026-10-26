@@ -7,6 +7,7 @@ import {
 import { MongoQuizRepository, MongoResultsRepository } from "@/adapters/mongo";
 import { RedisLiveStore } from "@/adapters/redis";
 import { GameService } from "@/services/game";
+import { QuizService } from "@/services/quizzes";
 import { loadEnv, type Env } from "./env";
 
 /**
@@ -15,7 +16,8 @@ import { loadEnv, type Env } from "./env";
  */
 export interface Container {
   game: GameService;
-  quizzes: MemoryQuizRepository | MongoQuizRepository;
+  quizzes: QuizService;
+  results: MemoryResultsRepository | MongoResultsRepository;
   realtime: MemoryRealtimePublisher | AblyRealtimePublisher;
 }
 
@@ -38,7 +40,7 @@ export function buildContainer(env: Env): Container {
     quizzes, results, live, realtime,
     limits: { maxPlayersPerSession: env.MAX_PLAYERS_PER_SESSION, maxPlayersGlobal: env.MAX_PLAYERS_GLOBAL },
   });
-  return { game, quizzes, realtime };
+  return { game, quizzes: new QuizService(quizzes), results, realtime };
 }
 
 // Survive Next.js dev hot-reload without leaking connections or losing memory-mode state.

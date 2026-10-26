@@ -119,6 +119,30 @@ export class RedisLiveStore implements LiveStore {
 
   playerCount(code: string) { return this.redis.hlen(this.k(code, ":players")); }
 
+  async players(code: string) {
+    const all = await this.redis.hgetall(this.k(code, ":players"));
+    return Object.entries(all).map(([id, nickname]) => ({ id, nickname }));
+  }
+
+  async playerState(code: string, playerId: string, index: number) {
+    const [nickname, score, rank, choice] = await this.redis.multi()
+      .hget(this.k(code, ":players"), playerId)
+      .zscore(this.k(code, ":scores"), playerId)
+      .zrevrank(this.k(code, ":scores"), playerId)
+      .hget(this.k(code, `:a:${index}`), playerId)
+      .exec()
+      .then((r) => (r ?? []).map(([, v]) => v as string | number | null));
+    if (nickname === null || nickname === undefined) return null;
+    return {
+      nickname: String(nickname),
+      score: score === null ? 0 : Number(score),
+      rank: rank === null ? null : Number(rank) + 1,
+      choice: choice === null ? null : String(choice),
+    };
+  }
+
+  answerCount(code: string, index: number) { return this.redis.hlen(this.k(code, `:a:${index}`)); }
+
   async kick(code: string, playerId: string) {
     await this.redis.eval(
       KICK, 4,

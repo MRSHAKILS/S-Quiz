@@ -34,6 +34,11 @@ export class MongoQuizRepository implements QuizRepository {
     return doc ? toQuiz(doc) : null;
   }
 
+  async delete(id: string, ownerId: string) {
+    await this.ready;
+    return (await this.col.deleteOne({ _id: id, ownerId })).deletedCount === 1;
+  }
+
   async listByOwner(ownerId: string) {
     await this.ready;
     const docs = await this.col.find({ ownerId }).sort({ createdAt: -1 }).limit(100).toArray();
@@ -47,7 +52,10 @@ export class MongoResultsRepository implements ResultsRepository {
 
   constructor(db: Db) {
     this.col = db.collection<ResultDoc>("results");
-    this.ready = this.col.createIndex({ hostId: 1, endedAt: -1 });
+    this.ready = Promise.all([
+      this.col.createIndex({ hostId: 1, endedAt: -1 }),
+      this.col.createIndex({ code: 1 }),
+    ]);
   }
 
   async save(result: SessionResult) {
@@ -58,6 +66,14 @@ export class MongoResultsRepository implements ResultsRepository {
       result,
       { upsert: true },
     );
+  }
+
+  async getByCode(code: string) {
+    await this.ready;
+    const doc = await this.col.findOne({ code }, { sort: { endedAt: -1 } });
+    if (!doc) return null;
+    const { _id, ...rest } = doc; void _id;
+    return rest;
   }
 
   async listByHost(hostId: string) {

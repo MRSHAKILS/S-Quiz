@@ -12,11 +12,14 @@ export interface QuizRepository {
   save(quiz: Quiz): Promise<void>;
   get(id: string): Promise<Quiz | null>;
   listByOwner(ownerId: string): Promise<Quiz[]>;
+  /** Returns false when the quiz does not exist or is not owned by `ownerId`. */
+  delete(id: string, ownerId: string): Promise<boolean>;
 }
 
 export interface ResultsRepository {
   save(result: SessionResult): Promise<void>;
   listByHost(hostId: string): Promise<SessionResult[]>;
+  getByCode(code: string): Promise<SessionResult | null>;
 }
 
 export type JoinOutcome = "joined" | "rejoined" | "session_full" | "server_full" | "name_taken";
@@ -24,6 +27,15 @@ export type JoinOutcome = "joined" | "rejoined" | "session_full" | "server_full"
 export type AnswerOutcome =
   | { status: "accepted"; elapsedMs: number; firstCorrect: boolean }
   | { status: "duplicate" | "closed" | "late" };
+
+export interface PlayerState {
+  nickname: string;
+  score: number;
+  /** 1-based, null if the player has no standing (e.g. kicked). */
+  rank: number | null;
+  /** Option chosen for the asked question index, or null if unanswered. */
+  choice: string | null;
+}
 
 export interface RecordAnswerInput {
   code: string;
@@ -47,6 +59,10 @@ export interface LiveStore {
   saveSession(session: Session): Promise<void>;
   join(code: string, playerId: string, nickname: string, globalMax: number): Promise<JoinOutcome>;
   playerCount(code: string): Promise<number>;
+  players(code: string): Promise<{ id: string; nickname: string }[]>;
+  /** Null if the player is not in the session. `index` selects which question's choice to report. */
+  playerState(code: string, playerId: string, index: number): Promise<PlayerState | null>;
+  answerCount(code: string, index: number): Promise<number>;
   kick(code: string, playerId: string): Promise<void>;
   recordAnswer(input: RecordAnswerInput): Promise<AnswerOutcome>;
   addScore(code: string, playerId: string, points: number): Promise<void>;

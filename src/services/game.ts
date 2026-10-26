@@ -4,7 +4,7 @@ import { transition, type HostAction } from "@/core/session-machine";
 import { toPublicQuestion } from "@/core/public-view";
 import type { LeaderboardEntry, PublicQuestion, Question, Quiz, Session } from "@/core/types";
 import type {
-  JoinOutcome, LiveStore, QuizRepository, RealtimePublisher, ResultsRepository,
+  JoinOutcome, LiveStore, PlayerState, QuizRepository, RealtimePublisher, ResultsRepository,
 } from "@/ports";
 
 export interface GameDeps {
@@ -27,11 +27,21 @@ const makeCode = () =>
   Array.from(randomBytes(6), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
 
 export interface GameSnapshot {
+  code: string;
   status: Session["status"];
+  quizTitle: string;
   playerCount: number;
   question: PublicQuestion | null;
   startedAt: number | null;
+  /** Store clock at response time; clients use it to align their countdown. */
+  serverNow: number;
   leaderboard: LeaderboardEntry[];
+  /** Only populated once the round is revealed (or the quiz ended). */
+  correctOptionId: string | null;
+  /** Present for the requesting player. */
+  me: PlayerState | null;
+  /** Host-only extras. */
+  host?: { players: { id: string; nickname: string }[]; answeredCount: number; locked: boolean; maxPlayers: number };
 }
 
 export class GameService {
@@ -129,20 +139,40 @@ export class GameService {
     return { status: "accepted" as const, points: 0 };
   }
 
-  /** Reconnect/polling fallback: derive everything from the source of truth. */
-  async snapshot(code: string): Promise<GameSnapshot> {
+  /**
+   * Reconnect/polling fallback: derive everything from the source of truth.
+   * The correct answer is only included once the round has been revealed.
+   */
+  async snapshot(code: string, opts: { playerId?: string; hostId?: string } = {}): Promise<GameSnapshot> {
     const session = await this.requireSession(code);
     const quiz = await this.requireQuiz(session.quizId);
-    const inQuestion = session.status === "question" || session.status === "reveal";
-    return {
-      status: session.status,
-      playerCount: await this.d.live.playerCount(code),
-      question: inQuestion
-        ? toPublicQuestion(this.questionAt(quiz, session.currentIndex), session.currentIndex, quiz.questions.length)
-        : null,
-      startedAt: inQuestion ? session.questionStartedAt : null,
-      leaderboard: session.status === "lobby" ? [] : await this.d.live.leaderboard(code, 10),
+    const inRound = session.status === "question" || session.status === "reveal";
+    const q = inRound ? this.questionAt(quiz, session.currentIndex) : null;
+    const isHost = opts.hostId !== undefined && opts.hostId === session.hostId;
+
+    const [playerCount, leaderboard, me, serverNow] = await Promise.all([
+      this.d.live.playerCount(session.code),
+      session.status === "lobby" ? Promise.resolve([]) : this.d.live.leaderboard(session.code, 10),
+      opts.playerId ? this.d.live.playerState(session.code, opts.playerId, session.currentIndex) : Promise.resolve(null),
+      this.d.live.now(),
+    ]);
+
+    const snap: GameSnapshot = {
+      code: session.code, status: session.status, quizTitle: quiz.title, playerCount,
+      question: q ? toPublicQuestion(q, session.currentIndex, quiz.questions.length) : null,
+      startedAt: inRound ? session.questionStartedAt : null,
+      serverNow, leaderboard,
+      correctOptionId: session.status === "reveal" ? q!.correctOptionId : null,
+      me,
     };
+    if (isHost) {
+      const [players, answeredCount] = await Promise.all([
+        this.d.live.players(session.code),
+        inRound ? this.d.live.answerCount(session.code, session.currentIndex) : Promise.resolve(0),
+      ]);
+      snap.host = { players, answeredCount, locked: session.locked, maxPlayers: session.maxPlayers };
+    }
+    return snap;
   }
 
   private async finish(session: Session, quiz: Quiz) {

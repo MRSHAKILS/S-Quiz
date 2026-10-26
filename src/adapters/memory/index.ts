@@ -11,6 +11,11 @@ export class MemoryQuizRepository implements QuizRepository {
   private quizzes = new Map<string, Quiz>();
   async save(quiz: Quiz) { this.quizzes.set(quiz.id, structuredClone(quiz)); }
   async get(id: string) { const q = this.quizzes.get(id); return q ? structuredClone(q) : null; }
+  async delete(id: string, ownerId: string) {
+    const q = this.quizzes.get(id);
+    if (!q || q.ownerId !== ownerId) return false;
+    return this.quizzes.delete(id);
+  }
   async listByOwner(ownerId: string) {
     return [...this.quizzes.values()].filter((q) => q.ownerId === ownerId).map((q) => structuredClone(q));
   }
@@ -20,13 +25,14 @@ export class MemoryResultsRepository implements ResultsRepository {
   private results: SessionResult[] = [];
   async save(result: SessionResult) { this.results.push(structuredClone(result)); }
   async listByHost(hostId: string) { return this.results.filter((r) => r.hostId === hostId); }
+  async getByCode(code: string) { return this.results.find((r) => r.code === code) ?? null; }
 }
 
 interface SessionState {
   session: Session;
   players: Map<string, string>; // playerId -> nickname
   scores: Map<string, number>;
-  answers: Map<number, Set<string>>; // question index -> playerIds who answered
+  answers: Map<number, Map<string, string>>; // question index -> playerId -> optionId
   firstCorrect: Set<number>;
 }
 
@@ -65,6 +71,21 @@ export class MemoryLiveStore implements LiveStore {
     return "joined";
   }
   async playerCount(code: string) { return this.sessions.get(code)?.players.size ?? 0; }
+  async players(code: string) {
+    const s = this.sessions.get(code);
+    return s ? [...s.players].map(([id, nickname]) => ({ id, nickname })) : [];
+  }
+  async playerState(code: string, playerId: string, index: number) {
+    const s = this.sessions.get(code);
+    const nickname = s?.players.get(playerId);
+    if (!s || nickname === undefined) return null;
+    const ranked = [...s.scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+    return {
+      nickname, score: s.scores.get(playerId) ?? 0, rank: ranked.indexOf(playerId) + 1,
+      choice: s.answers.get(index)?.get(playerId) ?? null,
+    };
+  }
+  async answerCount(code: string, index: number) { return this.sessions.get(code)?.answers.get(index)?.size ?? 0; }
   async kick(code: string, playerId: string) {
     const s = this.sessions.get(code);
     if (s?.players.delete(playerId)) { s.scores.delete(playerId); this.globalPlayers--; }
@@ -75,11 +96,11 @@ export class MemoryLiveStore implements LiveStore {
     if (!s || s.session.status !== "question" || s.session.currentIndex !== input.index || !s.players.has(input.playerId)) {
       return { status: "closed" };
     }
-    const answered = s.answers.get(input.index) ?? new Set<string>();
+    const answered = s.answers.get(input.index) ?? new Map<string, string>();
     if (answered.has(input.playerId)) return { status: "duplicate" };
     const elapsedMs = this.clock() - s.session.questionStartedAt;
     if (isLate(elapsedMs, input.timeLimitMs)) return { status: "late" };
-    answered.add(input.playerId);
+    answered.set(input.playerId, input.optionId);
     s.answers.set(input.index, answered);
     const firstCorrect = input.correct && !s.firstCorrect.has(input.index);
     if (firstCorrect) s.firstCorrect.add(input.index);
