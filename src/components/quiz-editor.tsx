@@ -142,7 +142,7 @@ export function QuizEditor({ initial }: { initial?: EditorInitial }) {
         onClick={() => setQuestions((qs) => [...qs, blank()])}>+ Add question</Button>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <p role="alert" className="min-w-0 truncate text-sm text-wrong">{error}</p>
           <div className="flex shrink-0 gap-2">
             {initial?.id && <Button variant="danger" disabled={busy} onClick={remove}>Delete</Button>}

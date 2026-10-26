@@ -86,4 +86,5 @@ The database is the source of truth and push is an optimisation. `GameService.sn
 | Service | Full game loop on memory adapters with an injected clock. |
 | Adapters | One shared contract suite per port, run against memory and real Redis (CI service container). |
 | Config | Env validation tests. |
-| End to end | Browser smoke test with simulated players (phase 6). |
+| End to end | `npm run e2e`: a real browser plays a full game (host + 3 phones); runs on memory or Redis, in CI against a Redis service. |
+| Capacity | `tests/load.test.ts`: 140 join attempts and 100 concurrent answers on real Redis; asserts the global budget and one-time bonus. |

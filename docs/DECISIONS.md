@@ -38,3 +38,12 @@ Short architecture decision records. Each states the choice, the honest trade-of
 ## 007. In-memory defaults
 **Decision:** every driver defaults to memory so a reviewer can run the app with zero setup.
 **Cost:** memory mode is single-process and not for production. Config validation fails fast if a real driver lacks its connection string.
+
+## 008. Push-first clients with a polling safety net
+**Decision:** clients patch state from push events when the event carries enough (lobby count, new question) and otherwise refetch `GET /api/sessions/:code`. They also poll: every 2.5 s without push, every 15 s with it.
+**Why:** push can drop (mobile networks, provider outage). The snapshot is derived from the source of truth, so recovering is just another fetch. It also means the app works with `REALTIME=none`.
+**Cost:** each snapshot is about 5 Redis commands. At 100 players a round costs roughly 1,500 commands, so the 500K/month free quota allows a few hundred rounds. Direct patching of reveal and end events is on the roadmap to reduce this.
+
+## 009. Hosts authenticate, players are anonymous
+**Decision:** only hosts sign in (JWT sessions, no auth database). Players get an httpOnly cookie id.
+**Cost:** a player's cookie is a bearer credential for that browser; clearing it loses the seat. Acceptable for a short, low-stakes game, and rejoining by nickname is blocked by design to prevent impersonation.

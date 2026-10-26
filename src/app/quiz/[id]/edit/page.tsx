@@ -22,7 +22,7 @@ export default async function EditQuiz({ params }: { params: Promise<{ id: strin
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-bold tracking-tight">Edit quiz</h1>
         <QuizEditor
           initial={{

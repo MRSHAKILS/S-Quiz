@@ -12,7 +12,7 @@ Built as a portfolio project on **free tiers only**, and designed so every techn
 | Live session state | **Redis** (Upstash) | Atomic ops and sorted sets fit join caps, answer dedupe and leaderboards. |
 | Durable data | **MongoDB** (Atlas M0) | A quiz is one document with variably-shaped questions. |
 | Push to browsers | Ably (free) | Serverless hosting can't hold sockets; browsers get scoped tokens. |
-| Auth | Auth.js (Google, GitHub), guests by nickname | Free, no vendor lock-in. Arrives in phase 2. |
+| Auth | Auth.js (Google, GitHub), guests by nickname | Free, no vendor lock-in, JWT sessions (no auth database). |
 | Hosting | Vercel Hobby | Free, preview deploys. |
 
 Every row sits behind a port interface, so each can be swapped. See [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
@@ -46,7 +46,16 @@ REDIS_URL=redis://localhost:6379 npm test   # also runs the contract suite again
 
 The same contract tests run against every `LiveStore` implementation, so a new adapter is trusted only when it passes the shared suite.
 
+## Try the whole flow locally
+
+```bash
+echo "AUTH_DEV_LOGIN=1" >> .env.local   # dev-only sign-in, ignored in production builds
+npm run dev                              # sign in at /login, create a quiz, host it, open /j/CODE on a phone
+npm run e2e                              # headless browser plays a full game (host + 3 phones)
+```
+
 ## Status
 
-Phase 1 (this commit range): scaffold, domain core, ports and adapters (memory, Redis, MongoDB, Ably), game service, CI, design tokens, landing page.
-Next: auth and quiz editor (phase 2), host/lobby/QR (phase 3), live play UI (phase 4). See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+All six phases are implemented: auth and quiz editor, host lobby with QR, live play with reveal and leaderboard, podium and results history, an end-to-end test and a capacity test. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what is next.
+
+Deploying: set `PERSISTENCE=mongo`, `LIVE_STORE=redis`, `REALTIME=ably`, the connection strings, `AUTH_SECRET` and one OAuth provider in Vercel's environment settings.
