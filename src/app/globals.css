@@ -1,4 +1,49 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — see docs/DESIGN.md.
+ * One accent, neutral surfaces, system fonts (no webfont round-trip on mobile data).
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --color-paper: #f7f6f3;
+  --color-surface: #ffffff;
+  --color-ink: #16181d;
+  --color-muted: #5b6070;
+  --color-line: #dedcd5;
+  --color-accent: #d2402a;
+  --color-accent-ink: #ffffff;
+  --color-correct: #1c7c54;
+  --color-wrong: #b3261e;
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+}
+
 :root { color-scheme: light dark; }
-body { @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100; }
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-paper: #121316;
+    --color-surface: #1a1c21;
+    --color-ink: #f1efe9;
+    --color-muted: #9aa0ae;
+    --color-line: #2c2f37;
+    --color-accent: #f0583f;
+    --color-correct: #4cc38a;
+    --color-wrong: #f2766e;
+  }
+}
+
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
+
+/* Scores and timers must not jitter as digits change. */
+.tnum { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
