@@ -12,9 +12,13 @@ const isProd = process.env.NODE_ENV === "production";
 const devLogin = process.env.AUTH_DEV_LOGIN === "1" && !isProd;
 
 const providers: NextAuthConfig["providers"] = [];
-if (process.env.AUTH_GOOGLE_ID) providers.push(Google);
-if (process.env.AUTH_GITHUB_ID) providers.push(GitHub);
+/** What the login page renders. Tracked explicitly rather than introspected from provider objects. */
+export const authProviders: { id: string; name: string }[] = [];
+
+if (process.env.AUTH_GOOGLE_ID) { providers.push(Google); authProviders.push({ id: "google", name: "Google" }); }
+if (process.env.AUTH_GITHUB_ID) { providers.push(GitHub); authProviders.push({ id: "github", name: "GitHub" }); }
 if (devLogin) {
+  authProviders.push({ id: "dev", name: "Dev login" });
   // Local-only shortcut so the app is fully usable without OAuth credentials.
   providers.push(
     Credentials({
@@ -28,11 +32,6 @@ if (devLogin) {
     }),
   );
 }
-
-export const authProviders = providers.map((p) => {
-  const cfg = typeof p === "function" ? p({}) : p;
-  return { id: cfg.id, name: cfg.name };
-});
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
