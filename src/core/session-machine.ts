@@ -24,7 +24,7 @@ export function transition(
 
   if (action === "start" && session.status === "lobby") {
     if (totalQuestions === 0) throw new Error("Quiz has no questions");
-    return { ...session, status: "question", currentIndex: 0, questionStartedAt: now, locked: true };
+    return { ...session, status: "question", currentIndex: 0, questionStartedAt: now };
   }
   if (action === "reveal" && session.status === "question") {
     return { ...session, status: "reveal" };

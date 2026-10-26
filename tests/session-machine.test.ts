@@ -10,7 +10,7 @@ const lobby: Session = {
 describe("session state machine", () => {
   it("walks lobby -> question -> reveal -> ended for a one-question quiz", () => {
     const q = transition(lobby, "start", 1, 1000);
-    expect(q).toMatchObject({ status: "question", currentIndex: 0, questionStartedAt: 1000, locked: true });
+    expect(q).toMatchObject({ status: "question", currentIndex: 0, questionStartedAt: 1000 });
     const r = transition(q, "reveal", 1, 2000);
     expect(r.status).toBe("reveal");
     expect(transition(r, "next", 1, 3000).status).toBe("ended");
