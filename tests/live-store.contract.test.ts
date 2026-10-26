@@ -124,5 +124,17 @@ for (const [name, make, enabled] of impls) {
       expect(await s.playerState("JJJJJJ", "ghost", 0)).toBeNull();
       expect((await s.players("JJJJJJ")).map((p) => p.nickname).sort()).toEqual(["Ann", "Bob"]);
     });
+
+    it("keeps standings readable after release while freeing capacity", async () => {
+      const s = make();
+      await s.createSession(base("KKKKKK"));
+      await s.join("KKKKKK", "a", "Ann", 1);
+      await s.addScore("KKKKKK", "a", 700);
+      await s.release("KKKKKK");
+      expect(await s.playerState("KKKKKK", "a", 0)).toMatchObject({ nickname: "Ann", score: 700, rank: 1 });
+      expect(await s.leaderboard("KKKKKK")).toHaveLength(1);
+      await s.createSession(base("LLLLLL"));
+      expect(await s.join("LLLLLL", "b", "Bob", 1)).toBe("joined"); // budget of 1 was freed
+    });
   });
 }

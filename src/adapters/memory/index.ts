@@ -34,6 +34,7 @@ interface SessionState {
   scores: Map<string, number>;
   answers: Map<number, Map<string, string>>; // question index -> playerId -> optionId
   firstCorrect: Set<number>;
+  released: boolean;
 }
 
 /** Zero-dependency LiveStore: powers tests and `LIVE_STORE=memory` demos. */
@@ -48,7 +49,7 @@ export class MemoryLiveStore implements LiveStore {
     if (this.sessions.has(session.code)) return false;
     this.sessions.set(session.code, {
       session: { ...session }, players: new Map(), scores: new Map(),
-      answers: new Map(), firstCorrect: new Set(),
+      answers: new Map(), firstCorrect: new Set(), released: false,
     });
     return true;
   }
@@ -88,7 +89,7 @@ export class MemoryLiveStore implements LiveStore {
   async answerCount(code: string, index: number) { return this.sessions.get(code)?.answers.get(index)?.size ?? 0; }
   async kick(code: string, playerId: string) {
     const s = this.sessions.get(code);
-    if (s?.players.delete(playerId)) { s.scores.delete(playerId); this.globalPlayers--; }
+    if (s?.players.delete(playerId)) { s.scores.delete(playerId); if (!s.released) this.globalPlayers--; }
   }
 
   async recordAnswer(input: RecordAnswerInput): Promise<AnswerOutcome> {
@@ -123,9 +124,10 @@ export class MemoryLiveStore implements LiveStore {
 
   async release(code: string) {
     const s = this.sessions.get(code);
-    if (!s) return;
+    if (!s || s.released) return;
+    // Frees capacity but keeps the roster and scores readable for late reconnects, like Redis does.
+    s.released = true;
     this.globalPlayers -= s.players.size;
-    s.players.clear();
   }
 }
 
