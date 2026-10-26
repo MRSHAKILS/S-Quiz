@@ -1,0 +1,13 @@
+name: keepalive
+# Free tiers pause idle databases (Atlas M0, Upstash, Supabase-style). A weekly
+# deep health check touches Mongo + Redis so the demo is always warm.
+on:
+  schedule: [{ cron: "17 6 * * 1" }]
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl --fail --silent --show-error --retry 3 "$APP_URL/api/health?deep=1"
+        env:
+          APP_URL: ${{ vars.APP_URL }}

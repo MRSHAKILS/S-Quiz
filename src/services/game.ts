@@ -37,6 +37,11 @@ export interface GameSnapshot {
 export class GameService {
   constructor(private d: GameDeps) {}
 
+  /** Cheap round-trip through both stores, used by the deep health check. */
+  async ping() {
+    await Promise.all([this.d.live.now(), this.d.quizzes.get("__ping__")]);
+  }
+
   async createSession(hostId: string, quizId: string, maxPlayers?: number): Promise<Session> {
     const quiz = await this.requireQuiz(quizId);
     if (quiz.ownerId !== hostId) throw new GameError("forbidden", "Not your quiz");
